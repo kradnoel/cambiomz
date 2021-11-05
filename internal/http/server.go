@@ -1,11 +1,15 @@
 package http
 
 import (
+	"log"
 	"os"
- "log"
+
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 	_ "github.com/heroku/x/hmetrics/onload"
+	"github.com/joho/godotenv"
+	limiter "github.com/ulule/limiter/v3"
+	mgin "github.com/ulule/limiter/v3/drivers/middleware/gin"
+	"github.com/ulule/limiter/v3/drivers/store/memory"
 )
 
 func init() {
@@ -13,8 +17,8 @@ func init() {
 }
 
 type Server struct {
-	Address string
-	//Handler *mux.Router
+	Address   string
+	RateLimit string
 }
 
 func New() Server {
@@ -41,6 +45,7 @@ func (s *Server) Run() {
 
 func (s *Server) Default() {
 	port := os.Getenv("PORT")
+	rateLimit := os.Getenv("RATE_LIMIT")
 
 	if port == "" {
 		log.Fatal("$PORT must be set")
@@ -49,10 +54,30 @@ func (s *Server) Default() {
 	if port != "" {
 		s.Address = ":" + port
 	}
+
+	if rateLimit == "" {
+		log.Fatal("$RATELIMIT must be set")
+	}
+
+	if rateLimit != "" {
+		s.RateLimit = rateLimit
+	}
 }
 
 func (s *Server) Run() {
+
+	rate, err := limiter.NewRateFromFormatted("5-S")
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	store := memory.NewStore()
+	middleware := mgin.NewMiddleware(limiter.New(store, rate))
+
 	r := gin.Default()
+	r.Use(middleware)
+
 	/*r.GET("/", index)*/
 	r.GET("/health", ping2)
 	r.GET("/api/v1.0.0/exchange", graphQuery2)
