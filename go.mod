@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/PuerkitoBio/goquery v1.5.1
-	github.com/gin-gonic/gin v1.6.3
+	github.com/gin-gonic/gin v1.7.3
 	github.com/google/go-cmp v0.5.6 // indirect
 	github.com/graphql-go/graphql v0.7.9
 	github.com/heroku/x v0.0.17
