@@ -7,6 +7,8 @@ import (
 	"github.com/kradnoel/cambiomz/internal/types"
 )
 
+var exchangeRates = types.ExchangeRates{}
+
 var currencyType = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Currency",
@@ -18,40 +20,68 @@ var currencyType = graphql.NewObject(
 		},
 	})
 
-var queryType = graphql.NewObject(
+var Entity = graphql.NewObject(
+	graphql.ObjectConfig{
+		Name: "Entity",
+		Fields: graphql.Fields{
+			"entity":   &graphql.Field{Description: "Entity names", Type: graphql.String},
+			"currency": &graphql.Field{Description: "Entity names", Type: currencyType},
+		},
+	})
+
+var rootQuery = graphql.NewObject(
 	graphql.ObjectConfig{
 		Name: "Query",
 		Fields: graphql.Fields{
-			"currency": &graphql.Field{
-				Type: currencyType,
+			"single": &graphql.Field{
+				Type: Entity,
 				Args: graphql.FieldConfigArgument{
+					"entity": &graphql.ArgumentConfig{
+						Type: graphql.String,
+					},
 					"currency": &graphql.ArgumentConfig{
 						Type: graphql.String,
 					},
 				},
 				Resolve: func(params graphql.ResolveParams) (interface{}, error) {
-					idQuery, isOK := params.Args["currency"].(string)
-					//currencies, _ := types.LoadFakeCurrencies()
-					currencies, _ := types.LoadCurrencies()
-					currency := types.NewCurrency()
-					if isOK {
-						// Search for el with id
-						for _, curr := range currencies {
-							if curr.Currency == strings.ToUpper(idQuery) {
-								return curr, nil
+					entity := types.NewEntityValue()
+
+					idEntity, isEntityOk := params.Args["entity"].(string)
+
+					if isEntityOk {
+						switch idEntity {
+						case "bim":
+							currencies, _ := exchangeRates.LoadMilleniumBomRates()
+							currency := types.NewCurrencyValue()
+							entity = types.NewEntityValue()
+							entity.Entity = "bim"
+
+							idCurrency, isCurrencyOk := params.Args["currency"].(string)
+
+							if isCurrencyOk {
+								for _, cur := range currencies {
+									if cur.Currency == strings.ToUpper(idCurrency) {
+										currency.Country = cur.Country
+										currency.Currency = cur.Currency
+										currency.Buy = cur.Buy
+										currency.Sell = cur.Sell
+										entity.Currency = currency
+									}
+								}
 							}
 
+						default:
+							entity = types.NewEntityValue()
 						}
 					}
 
-					return currency, nil
+					return entity, nil
 				},
 			},
 			"currencies": &graphql.Field{
 				Type: graphql.NewList(currencyType),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					//currencies, _ := types.LoadFakeCurrencies()
-					currencies, _ := types.LoadCurrencies()
+					currencies, _ := exchangeRates.LoadCurrencies()
 					return currencies, nil
 				},
 			},
