@@ -1,33 +1,24 @@
 package graphql
 
 import (
+	"fmt"
+
 	"github.com/graphql-go/graphql"
 )
 
 var schema, _ = graphql.NewSchema(
 	graphql.SchemaConfig{
-		Query: queryType,
+		Query: rootQuery,
 	},
 )
 
-/*func executeQuery(query string, schema graphql.Schema) *graphql.Result {
-	result := graphql.Do(graphql.Params{
-		Schema:        schema,
-		RequestString: query,
-	})
-	if len(result.Errors) > 0 {
-		//fmt.Printf("wrong result, unexpected errors: %v", result.Errors)
-	}
-	return result
-}
-*/
 func ExecuteQuery(query string) *graphql.Result {
 	result := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: query,
 	})
 	if len(result.Errors) > 0 {
-		//fmt.Printf("wrong result, unexpected errors: %v", result.Errors)
+		fmt.Printf("wrong result, unexpected errors: %v", result.Errors)
 	}
 	return result
 }

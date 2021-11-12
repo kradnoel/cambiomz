@@ -4,34 +4,86 @@ import (
 	"net/http"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/kradnoel/cambiomz/pkg/util"
 )
 
-type currency struct {
+type entityValue struct {
+	Entity   string
+	Currency currencyValue
+}
+
+type currencyValue struct {
 	Country  string
 	Currency string
 	Buy      string
 	Sell     string
 }
 
-func NewCurrency() currency {
-	return currency{}
+type ExchangeRates struct{}
+
+func NewCurrency() currencyValue {
+	return currencyValue{}
 }
 
-func CurrencyWithValues(_country string, _currency string, _buy string, _sell string) currency {
-	return currency{
-		Country:  _country,
-		Currency: _currency,
-		Buy:      _buy,
-		Sell:     _sell,
+func NewEntityValue() entityValue {
+	return entityValue{}
+}
+
+func NewCurrencyValue() currencyValue {
+	return currencyValue{}
+}
+
+func (e *ExchangeRates) LoadMilleniumBomRates() ([]currencyValue, error) {
+	cambio := []currencyValue{}
+
+	res, err := http.Get("https://millenniumbim.co.mz/pt/mass-market")
+	if err != nil {
+		return cambio, err
 	}
+
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return cambio, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return cambio, err
+	}
+
+	doc.Find(".rates-card-one .rates-values .values").Each(func(i int, s *goquery.Selection) {
+		children := s.Find("span")
+		tempCurrency := NewCurrency()
+
+		for j := range children.Nodes {
+			span := children.Eq(j).Text()
+
+			// currency
+			if j == 0 {
+				tempCurrency.Currency = span
+			}
+
+			// buy
+			if j == 1 {
+				tempCurrency.Buy = util.FormattedCurrency(span, ",")
+			}
+
+			// sell
+			if j == 2 {
+				tempCurrency.Sell = util.FormattedCurrency(span, ",")
+			}
+		}
+		cambio = append(cambio, tempCurrency)
+	})
+	return cambio, nil
 }
 
-func LoadCurrencies() ([]currency, error) {
+func (e *ExchangeRates) LoadCurrencies() ([]currencyValue, error) {
 	countries := make(map[int]string)
 	currencies := make(map[int]string)
 	buy := make(map[int]string)
 	sell := make(map[int]string)
-	cambio := []currency{}
+	cambio := []currencyValue{}
 
 	res, err := http.Get("https://www.bci.co.mz/cambio/")
 	if err != nil {
@@ -87,16 +139,16 @@ func LoadCurrencies() ([]currency, error) {
 	})
 
 	for y := 0; y < 12; y++ {
-		cambio = append(cambio, currency{Country: countries[y], Currency: currencies[y], Buy: buy[y], Sell: sell[y]})
+		cambio = append(cambio, currencyValue{Country: countries[y], Currency: currencies[y], Buy: buy[y], Sell: sell[y]})
 	}
 
 	return cambio, nil
 }
 
-func LoadFakeCurrencies() ([]currency, error) {
-	cambio := []currency{
-		currency{Country: "USA", Currency: "USD", Buy: "61.04", Sell: "61.02"},
-		currency{Country: "South Africa", Currency: "ZAR", Buy: "4.25", Sell: "4.35"},
+func (e *ExchangeRates) LoadFakeCurrencies() ([]currencyValue, error) {
+	cambio := []currencyValue{
+		{Country: "USA", Currency: "USD", Buy: "61.04", Sell: "61.02"},
+		{Country: "South Africa", Currency: "ZAR", Buy: "4.25", Sell: "4.35"},
 	}
 	return cambio, nil
 }
