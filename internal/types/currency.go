@@ -1,12 +1,9 @@
 package types
 
 import (
-	"fmt"
 	"net/http"
-
 	"log"
 	"os"
-
 	"github.com/PuerkitoBio/goquery"
 	"github.com/kradnoel/cambiomz/pkg/util"
 )
@@ -185,19 +182,16 @@ func (e *ExchangeRates) LoadStandardBankRates() ([]currencyValue, error) {
 					// currency
 					if k == 0 {
 						tempCurrency.Currency = td
-						fmt.Println(td)
 					}
 
 					// buy
 					if k == 1 {
 						tempCurrency.Buy = util.FormattedCurrency(td, ",")
-						fmt.Println(td)
 					}
 
 					// sell
 					if k == 2 {
 						tempCurrency.Sell = util.FormattedCurrency(td, ",")
-						fmt.Println(td)
 					}
 				}
 			})
@@ -207,6 +201,64 @@ func (e *ExchangeRates) LoadStandardBankRates() ([]currencyValue, error) {
 	})
 
 	return cambio, nil
+}
+
+func (e *ExchangeRates) LoadBMRates() ([]currencyValue, error) {
+	cambio := []currencyValue{}
+	bancoMocUrl := os.Getenv("BM_URL")
+
+	if bancoMocUrl == "" {
+		log.Fatal("$BM_URL must be set")
+	}
+
+	res, err := http.Get(bancoMocUrl)
+	if err != nil {
+		return cambio, err
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return cambio, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return cambio, err
+	}
+
+	doc.Find("table#zbmwebgtxc").Each(func(i int, s *goquery.Selection) {
+		children := s.Find("tr")
+		tempCurrency := NewCurrency()
+
+		for j := range children.Nodes {
+			children.Eq(j).Find("td").Each(func(k int, s1 *goquery.Selection) {
+				td := s1.Text()
+
+				if td != "" {
+					// currency
+					if k == 0 {
+						tempCurrency.Currency = td
+					}
+
+					// buy
+					if k == 1 {
+						tempCurrency.Buy = util.FormattedCurrency(td, ",")
+					}
+
+					// sell
+					if k == 2 {
+						tempCurrency.Sell = util.FormattedCurrency(td, ",")
+					}
+				}
+			})
+
+			cambio = append(cambio, tempCurrency)
+		}
+	})
+
+	return cambio, nil
+
+
 }
 
 func (e *ExchangeRates) LoadCurrencies() ([]currencyValue, error) {
