@@ -1,7 +1,11 @@
 package types
 
 import (
+	"fmt"
 	"net/http"
+
+	"log"
+	"os"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/kradnoel/cambiomz/pkg/util"
@@ -35,8 +39,13 @@ func NewCurrencyValue() currencyValue {
 
 func (e *ExchangeRates) LoadMilleniumBimRates() ([]currencyValue, error) {
 	cambio := []currencyValue{}
+	bimUrl := os.Getenv("BIM_URL")
 
-	res, err := http.Get("https://millenniumbim.co.mz/pt/mass-market")
+	if bimUrl == "" {
+		log.Fatal("$BIM_URL must be set")
+	}
+
+	res, err := http.Get(bimUrl)
 	if err != nil {
 		return cambio, err
 	}
@@ -80,8 +89,13 @@ func (e *ExchangeRates) LoadMilleniumBimRates() ([]currencyValue, error) {
 
 func (e *ExchangeRates) LoadBCIRates() ([]currencyValue, error) {
 	cambio := []currencyValue{}
+	bciUrl := os.Getenv("BCI_URL")
 
-	res, err := http.Get("https://www.bci.co.mz/cambio/")
+	if bciUrl == "" {
+		log.Fatal("$BCI_URL must be set")
+	}
+
+	res, err := http.Get(bciUrl)
 	if err != nil {
 		return cambio, err
 	}
@@ -125,6 +139,66 @@ func (e *ExchangeRates) LoadBCIRates() ([]currencyValue, error) {
 				// sell
 				if k == 3 {
 					tempCurrency.Sell = util.FormattedCurrency(td, ",")
+				}
+			})
+
+			cambio = append(cambio, tempCurrency)
+		}
+	})
+
+	return cambio, nil
+}
+
+func (e *ExchangeRates) LoadStandardBankRates() ([]currencyValue, error) {
+	cambio := []currencyValue{}
+	standardBankUrl := os.Getenv("STANDARD_URL")
+
+	if standardBankUrl == "" {
+		log.Fatal("$STANDARD_URL must be set")
+	}
+
+	res, err := http.Get(standardBankUrl)
+	if err != nil {
+		return cambio, err
+	}
+
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		return cambio, err
+	}
+
+	doc, err := goquery.NewDocumentFromReader(res.Body)
+	if err != nil {
+		return cambio, err
+	}
+
+	doc.Find("div.class-currency-exchange tbody").Each(func(i int, s *goquery.Selection) {
+		children := s.Find("tr")
+		tempCurrency := NewCurrency()
+
+		for j := range children.Nodes {
+			children.Eq(j).Find("td").Each(func(k int, s1 *goquery.Selection) {
+
+				td := s1.Text()
+
+				if td != "" {
+					// currency
+					if k == 0 {
+						tempCurrency.Currency = td
+						fmt.Println(td)
+					}
+
+					// buy
+					if k == 1 {
+						tempCurrency.Buy = util.FormattedCurrency(td, ",")
+						fmt.Println(td)
+					}
+
+					// sell
+					if k == 2 {
+						tempCurrency.Sell = util.FormattedCurrency(td, ",")
+						fmt.Println(td)
+					}
 				}
 			})
 

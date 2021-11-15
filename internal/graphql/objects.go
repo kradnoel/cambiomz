@@ -90,6 +90,26 @@ var rootQuery = graphql.NewObject(
 								}
 							}
 
+						case "sbk":
+							currencies, _ := exchangeRates.LoadStandardBankRates()
+							currency := types.NewCurrencyValue()
+							entity = types.NewEntityValue()
+							entity.Entity = "sbk"
+
+							idCurrency, isCurrencyOk := params.Args["currency"].(string)
+
+							if isCurrencyOk {
+								for _, cur := range currencies {
+									if cur.Currency == strings.ToUpper(idCurrency) {
+										currency.Country = cur.Country
+										currency.Currency = cur.Currency
+										currency.Buy = cur.Buy
+										currency.Sell = cur.Sell
+										entity.Currency = currency
+									}
+								}
+							}
+
 						default:
 							entity = types.NewEntityValue()
 						}
